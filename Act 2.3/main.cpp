@@ -1,9 +1,12 @@
 #include <iostream>
-
+#include <fstream>
+#include <string>
+#include <vector>
 #include "Keeper.h"
 
 using namespace std;
 
+// Complexity: O(n log n)
 int main()
 {
     Keeper keeper;
@@ -12,7 +15,7 @@ int main()
     {
         return -1;
     }
-    cout << keeper.size() << " records read." << endl;
+    cout << keeper.size() << " records read" << endl;
 
     keeper.sorting();
     keeper.searchRecords();

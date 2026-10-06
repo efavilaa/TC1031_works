@@ -2,6 +2,7 @@
 using namespace std;
 
 // SEUQENCIAL SEARCH
+// Complexity: O(n)
 int sequentialSearch(int arr[], int n, int x)
 {
     for (int i = 0; i < n; i++)
@@ -15,6 +16,7 @@ int sequentialSearch(int arr[], int n, int x)
 }
 
 // BINARY SEARCH
+// Complexity: O(log n)
 int binarySearch(int arr[], int n, int x)
 {
     int l = 0;

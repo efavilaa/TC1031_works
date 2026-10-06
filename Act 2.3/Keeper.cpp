@@ -1,212 +1,199 @@
 #include "Keeper.h"
-
 #include <fstream>
+#include <string>
+#include <vector>
 #include <iostream>
-#include <limits>
-#include <sstream>
 
-using namespace std;
-
-// Converts a three-letter month ("Jan".."Dec") to 1..12, or 0 if invalid.
+// We convert the month to numbre so it works
 // Complexity: O(1)
-int Keeper::monthToNumber(const string& month) {
-    static const string names[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-    for (int i = 0; i < 12; i++) {
-        if (names[i] == month) {
+int Keeper::monthToNumber(string month)
+{
+    string names[12] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    for (int i = 0; i < 12; i++)
+    {
+        if (names[i] == month)
+        {
             return i + 1;
         }
     }
     return 0;
 }
 
-// Builds a number that orders records chronologically (MMDDhhmmss).
-// Complexity: O(1)
-long long Keeper::makeKey(int month, int day, int hour, int minute, int second) {
-    return month * 100000000LL + day * 1000000LL + hour * 10000LL + minute * 100LL + second;
-}
-
-// Rebuilds the original log line of a record.
-// Complexity: O(1)
-string Keeper::format(const Record& r) {
-    return r.month + " " + to_string(r.day) + " " + r.time + " " + r.ip + " " + r.reason;
-}
-
-// Opens the input file, reads it line by line and stores every record in the vector.
-// Complexity: O(n), n = number of lines
-bool Keeper::read(const string& fileName) {
+// Reading the file and storing it
+// Complexity: O(n)
+bool Keeper::read(string fileName)
+{
     ifstream file(fileName);
-    if (!file.is_open()) {
-        cout << "Could not open " << fileName << endl;
+    if (!file.is_open())
+    {
+        cout << "Crashed" << fileName << endl;
         return false;
     }
 
-    records.clear();
-    string line;
-    while (getline(file, line)) {
-        if (line.empty()) {
-            continue;
-        }
-        istringstream ss(line);
-        Record r;
-        ss >> r.month >> r.day >> r.time >> r.ip;
-        getline(ss >> ws, r.reason);
+    string month, time, ip, reason;
+    int day;
+    while (file >> month >> day >> time >> ip)
+    {
+        getline(file, reason);
 
-        int hour = 0, minute = 0, second = 0;
-        char colon;
-        istringstream ts(r.time);
-        ts >> hour >> colon >> minute >> colon >> second;
+        int hour = stoi(time.substr(0, 2));
+        int minute = stoi(time.substr(3, 2));
+        int second = stoi(time.substr(6, 2));
 
-        r.key = makeKey(monthToNumber(r.month), r.day, hour, minute, second);
-        records.push_back(r);
+        // we save date as a number so we can compare them easy
+        int date = monthToNumber(month) * 100000000 + day * 1000000 + hour * 10000 + minute * 100 + second;
+
+        lines.push_back(month + " " + to_string(day) + " " + time + " " + ip + reason);
+        dates.push_back(date);
     }
     file.close();
     return true;
 }
 
-// Sorts the records by date and time using Merge Sort.
+// Sort by date with merge sort
 // Complexity: O(n log n)
-void Keeper::sorting() {
-    if (records.size() < 2) {
-        return;
-    }
-    vector<Record> temp(records.size());
-    mergeSort(0, records.size() - 1, temp);
+void Keeper::sorting()
+{
+    mergeSort(0, dates.size() - 1);
 }
 
-// Recursively splits the range [left, right] and merges the sorted halves.
+// merge sort dividing part
 // Complexity: O(n log n)
-void Keeper::mergeSort(int left, int right, vector<Record>& temp) {
-    if (left >= right) {
+void Keeper::mergeSort(int left, int right)
+{
+    if (left >= right)
+    {
         return;
     }
-    int mid = left + (right - left) / 2;
-    mergeSort(left, mid, temp);
-    mergeSort(mid + 1, right, temp);
-    merge(left, mid, right, temp);
+    int mid = (left + right) / 2;
+    mergeSort(left, mid);
+    mergeSort(mid + 1, right);
+    merge(left, mid, right);
 }
 
-// Merges the sorted ranges [left, mid] and [mid + 1, right].
+// calls merge sort and does the merging
 // Complexity: O(n)
-void Keeper::merge(int left, int mid, int right, vector<Record>& temp) {
-    int i = left, j = mid + 1, k = left;
-    while (i <= mid && j <= right) {
-        if (records[i].key <= records[j].key) {
-            temp[k++] = records[i++];
-        } else {
-            temp[k++] = records[j++];
+void Keeper::merge(int left, int mid, int right)
+{
+    vector<int> tempDates;
+    vector<string> tempLines;
+    int i = left;
+    int j = mid + 1;
+
+    while (i <= mid && j <= right)
+    {
+        if (dates[i] <= dates[j])
+        {
+            tempDates.push_back(dates[i]);
+            tempLines.push_back(lines[i]);
+            i++;
+        }
+        else
+        {
+            tempDates.push_back(dates[j]);
+            tempLines.push_back(lines[j]);
+            j++;
         }
     }
-    while (i <= mid) {
-        temp[k++] = records[i++];
+    while (i <= mid)
+    {
+        tempDates.push_back(dates[i]);
+        tempLines.push_back(lines[i]);
+        i++;
     }
-    while (j <= right) {
-        temp[k++] = records[j++];
+    while (j <= right)
+    {
+        tempDates.push_back(dates[j]);
+        tempLines.push_back(lines[j]);
+        j++;
     }
-    for (int x = left; x <= right; x++) {
-        records[x] = temp[x];
+
+    for (int k = 0; k < tempDates.size(); k++)
+    {
+        dates[left + k] = tempDates[k];
+        lines[left + k] = tempLines[k];
     }
 }
 
-// Binary search: index of the first record with key >= the given key.
+// Binary search
 // Complexity: O(log n)
-int Keeper::lowerBound(long long key) const {
-    int low = 0, high = records.size();
-    while (low < high) {
-        int mid = low + (high - low) / 2;
-        if (records[mid].key < key) {
+int Keeper::binarySearch(int key)
+{
+    int low = 0;
+    int high = dates.size();
+    while (low < high)
+    {
+        int mid = (low + high) / 2;
+        if (dates[mid] < key)
+        {
             low = mid + 1;
-        } else {
+        }
+        else
+        {
             high = mid;
         }
     }
     return low;
 }
 
-// Binary search: index of the first record with key > the given key.
-// Complexity: O(log n)
-int Keeper::upperBound(long long key) const {
-    int low = 0, high = records.size();
-    while (low < high) {
-        int mid = low + (high - low) / 2;
-        if (records[mid].key <= key) {
-            low = mid + 1;
-        } else {
-            high = mid;
-        }
-    }
-    return low;
-}
+// dates and prints
+// Complexity: O(log n + k)
+void Keeper::searchRecords()
+{
+    int start, end;
 
-// Asks the user for a date in the format "Mon D" (e.g. "Jun 1") until it is valid.
-// Complexity: O(1) per attempt
-bool Keeper::askDate(const string& label, int& month, int& day) const {
-    while (true) {
-        cout << "Enter the " << label << " date (e.g. Jun 1): ";
-        string monthText;
-        if (!(cin >> monthText >> day)) {
-            if (cin.eof()) {
-                return false;
-            }
-            cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
-            cout << "Invalid date, try again." << endl;
-            continue;
-        }
-        month = monthToNumber(monthText);
-        if (month == 0 || day < 1 || day > 31) {
-            cout << "Invalid date, try again." << endl;
-            continue;
-        }
-        return true;
-    }
-}
+    cout << "Start date (MMDDyyyy): ";
+    cin >> start;
+    cout << "End date (MMDDyyyy): ";
+    cin >> end;
 
-// Asks for a start and end date, finds every record in that range with
-// binary search and shows it on screen. Found records are kept in results.
-// Complexity: O(log n + k), k = number of records found
-void Keeper::searchRecords() {
+    // we delete the year
+    int startMonthDay = start / 10000;
+    int endMonthDay = end / 10000;
+    // swe use all seconds
+    int startKey = startMonthDay * 1000000;
+    int endKey = endMonthDay * 1000000 + 235959;
+
+    if (start < 1010000 || end < 1010000 || startKey > endKey)
+    {
+        cout << "Range does not exist" << endl;
+        return;
+    }
+
     results.clear();
-
-    int startMonth, startDay, endMonth, endDay;
-    if (!askDate("start", startMonth, startDay) || !askDate("end", endMonth, endDay)) {
-        return;
-    }
-
-    long long startKey = makeKey(startMonth, startDay, 0, 0, 0);
-    long long endKey = makeKey(endMonth, endDay, 23, 59, 59);
-    if (startKey > endKey) {
-        cout << "The start date is after the end date." << endl;
-        return;
-    }
-
-    int first = lowerBound(startKey);
-    int last = upperBound(endKey);
-    for (int i = first; i < last; i++) {
-        results.push_back(records[i]);
-        cout << format(records[i]) << endl;
+    int first = binarySearch(startKey);
+    int last = binarySearch(endKey + 1);
+    for (int i = first; i < last; i++)
+    {
+        results.push_back(lines[i]);
+        cout << lines[i] << endl;
     }
     cout << results.size() << " records found." << endl;
 }
 
-// Writes the results of the last search to the output file.
-// Complexity: O(k), k = number of records found
-bool Keeper::store(const string& fileName) const {
+// Output
+// Complexity: O(n)
+bool Keeper::store(string fileName)
+{
     ofstream file(fileName);
-    if (!file.is_open()) {
+    if (!file.is_open())
+    {
         cout << "Could not create " << fileName << endl;
         return false;
     }
-    for (const Record& r : results) {
-        file << format(r) << '\n';
+    for (int i = 0; i < results.size(); i++)
+    {
+        file << results[i] << endl;
     }
     file.close();
     cout << "Results saved to " << fileName << endl;
     return true;
 }
 
-// Returns how many records were read.
+// how many lines.
 // Complexity: O(1)
-int Keeper::size() const {
-    return records.size();
+int Keeper::size()
+{
+    return lines.size();
 }
